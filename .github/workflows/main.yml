@@ -40,4 +40,4 @@ jobs:
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
         GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
         RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
-      run: python news_automation_script_github.py # 실행할 파이썬 파일 이름
+      run: python news_automation_script_v4.py # 실행할 파이썬 파일 이름
