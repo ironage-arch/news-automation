@@ -27,13 +27,18 @@ jobs:
     - name: Create credentials.json from secret
       run: echo "${{ secrets.GOOGLE_CREDENTIALS }}" > credentials.json
 
+    # --- 이 부분이 수정되었습니다 ---
     - name: Create token.json from secret if it exists
-      if: ${{ secrets.GOOGLE_TOKEN }}
+      # GOOGLE_TOKEN secret이 존재하는 경우에만 이 단계를 실행합니다.
+      # secret을 env로 먼저 설정하고, if에서 env를 확인하는 것이 더 안정적입니다.
+      env:
+        GOOGLE_TOKEN: ${{ secrets.GOOGLE_TOKEN }}
+      if: env.GOOGLE_TOKEN
       run: echo "${{ secrets.GOOGLE_TOKEN }}" > token.json
 
     - name: Run Python script
       env:
-        # GitHub Secrets에 저장된 값들을 환경 변수로 스크립트에 전달.
+        # GitHub Secrets에 저장된 값들을 환경 변수로 스크립트에 전달
         NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
         NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
