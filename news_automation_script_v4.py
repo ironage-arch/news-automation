@@ -219,25 +219,36 @@ def analyze_news_with_ai(news_item):
         return "AI 심층 분석에 실패했습니다."
 
 # ==============================================================================
-# --- 5. 구글 문서 생성 함수 (디자인 개선) ---
+# --- 5. 구글 문서 생성 함수 (디자인 및 권한 설정 개선) ---
 # ==============================================================================
-def get_google_docs_service():
+def get_google_services():
+    """Google Docs와 Drive API 서비스를 인증하고 생성하는 함수"""
     creds = None
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f" (정보) 토큰 갱신 실패: {e}. 'token.json'을 삭제하고 다시 인증을 시도합니다.")
+                if os.path.exists('token.json'):
+                    os.remove('token.json')
+                creds = None
+    
+    if not creds:
+        flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+        creds = flow.run_local_server(port=0)
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
-    return build('docs', 'v1', credentials=creds)
+            
+    docs_service = build('docs', 'v1', credentials=creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    return docs_service, drive_service
 
 def generate_google_doc_report(analyzed_data):
     try:
-        docs_service = get_google_docs_service()
+        docs_service, drive_service = get_google_services()
     except FileNotFoundError:
         print("  (오류) 'credentials.json' 파일을 찾을 수 없습니다. 구글 인증 설정을 확인하세요.")
         return None, None
@@ -248,10 +259,19 @@ def generate_google_doc_report(analyzed_data):
     current_date = datetime.date.today().strftime('%Y년 %m월 %d일')
     document_title = f"ICT 주요 기술 동향 보고서 ({current_date})"
     try:
+        # 1. 문서 생성
         document = docs_service.documents().create(body={'title': document_title}).execute()
         document_id = document.get('documentId')
+        
+        # 2. (신규) 문서 접근 권한을 '링크가 있는 모든 사용자'로 설정
+        permission = {'type': 'anyone', 'role': 'reader'}
+        drive_service.permissions().create(fileId=document_id, body=permission).execute()
+        print("  > 문서 접근 권한을 공개로 설정했습니다.")
+
         document_url = f"https://docs.google.com/document/d/{document_id}/edit"
         print(f"  > 새 문서가 생성되었습니다: {document_url}")
+
+        # 3. 스타일링된 내용 추가
         requests = []
         index = 1
         title_text = f"{document_title}\n\n"
@@ -320,14 +340,14 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         main_content_html = main_content.replace('\n', '<br>')
         implications_html = implications.replace('\n', '<br>')
 
-        news_items_html += f"""
+        news_items_html += """
         <div class="news-item">
             <div class="news-header">
-                <h3 class="news-title">{data['title']}</h3>
+                <h3 class="news-title">{title}</h3>
                 <div class="news-meta">
-                    <span><strong>출처:</strong> {data['source']}</span>
-                    <span><strong>발행일:</strong> {data['published']}</span>
-                    <span><a href="{data['link']}" target="_blank">원문 기사 보기 &rarr;</a></span>
+                    <span><strong>출처:</strong> {source}</span>
+                    <span><strong>발행일:</strong> {published}</span>
+                    <span><a href="{link}" target="_blank">원문 기사 보기 &rarr;</a></span>
                 </div>
             </div>
             <div class="analysis-container">
@@ -340,7 +360,15 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
                     <p class="analysis-text">{implications_html}</p>
                 </div>
             </div>
-        </div>"""
+        </div>""".format(
+            title=data['title'],
+            source=data['source'],
+            published=data['published'],
+            link=data['link'],
+            main_content_html=main_content_html,
+            implications_html=implications_html
+        )
+        
     other_news_html = ""
     if other_news:
         other_news_html += """
@@ -349,7 +377,9 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             <ul class="other-news-list">
         """
         for item in other_news:
-            other_news_html += f'<li><a href="{item["link"]}" target="_blank" class="other-news-link"><span class="other-news-title">{item["title"]}</span><span class="other-news-source">({item["source"]})</span></a></li>'
+            other_news_html += '<li><a href="{link}" target="_blank" class="other-news-link"><span class="other-news-title">{title}</span><span class="other-news-source">({source})</span></a></li>'.format(
+                link=item["link"], title=item["title"], source=item["source"]
+            )
         other_news_html += "</ul></div>"
         
     html_template = """
