@@ -17,7 +17,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # ==============================================================================
-# --- 1. 설정값 (GitHub Actions Secrets에서 자동으로 불러옵니다) ---
+# --- 1. 사용자 설정 (GitHub Actions Secrets에서 자동으로 불러옵니다) ---
 # ==============================================================================
 
 # Google Alerts RSS 주소 (수정이 필요하면 이 부분을 직접 수정하세요)
@@ -62,10 +62,12 @@ SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.c
 def get_final_url(url):
     """리디렉션을 추적하여 최종 URL을 찾아내는 함수"""
     try:
+        # HEAD 요청을 보내 실제 콘텐츠를 다운로드하지 않고 헤더 정보만 받아옵니다.
         response = requests.head(url, allow_redirects=True, timeout=5)
         return response.url
     except requests.RequestException as e:
-        return url
+        # print(f"  (경고) URL 추적 실패: {url}, 에러: {e}")
+        return url # 실패 시 원래 URL 반환
 
 # ==============================================================================
 # --- 2. 뉴스 수집 함수 (링크 정확도 개선) ---
@@ -294,7 +296,7 @@ def generate_google_doc_report(analyzed_data):
         return None, None
 
 # ==============================================================================
-# --- 6. Gmail 전송 함수 (템플릿 및 파싱 로직 수정) ---
+# --- 6. Gmail 전송 함수 (오류 수정) ---
 # ==============================================================================
 def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
     """분석 리포트를 새로운 형식의 이메일로 전송하는 함수"""
@@ -341,6 +343,8 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         for item in other_news:
             other_news_html += f'<li><a href="{item["link"]}" target="_blank" class="other-news-link"><span class="other-news-title">{item["title"]}</span><span class="other-news-source">({item["source"]})</span></a></li>'
         other_news_html += "</ul></div>"
+        
+    # --- 이 부분이 수정되었습니다: f-string 내부의 { }를 {{ }}로 이스케이프 ---
     html_body = f"""
     <!DOCTYPE html>
     <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICT 주요기술 동향 리포트</title>
