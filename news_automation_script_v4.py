@@ -33,6 +33,10 @@ GOOGLE_ALERTS_RSS_URLS = [
     "https://www.google.co.kr/alerts/feeds/14299983816346888060/12348804382892789873", #주파수
     "https://www.google.co.kr/alerts/feeds/14299983816346888060/6144919849490708655", #AI-RAN
     "https://www.google.co.kr/alerts/feeds/14299983816346888060/270492137594840372", #AI-RAN
+    "https://www.google.co.kr/alerts/feeds/14299983816346888060/2496376606356182211", #AI network
+    "https://www.google.co.kr/alerts/feeds/14299983816346888060/2496376606356181274", #ITU-R
+    "https://www.google.co.kr/alerts/feeds/14299983816346888060/18373922797329225191", #ISAC
+    "https://www.google.co.kr/alerts/feeds/14299983816346888060/2496376606356184244", #IMT-2030
 ]
 
 # Naver 검색 키워드 (수정이 필요하면 이 부분을 직접 수정하세요)
@@ -344,8 +348,8 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             other_news_html += f'<li><a href="{item["link"]}" target="_blank" class="other-news-link"><span class="other-news-title">{item["title"]}</span><span class="other-news-source">({item["source"]})</span></a></li>'
         other_news_html += "</ul></div>"
         
-    # --- 이 부분이 수정되었습니다: f-string 내부의 { }를 {{ }}로 이스케이프 ---
-    html_body = f"""
+    # --- f-string 문법 오류를 피하기 위해 .format() 메소드 사용으로 변경 ---
+    html_template = """
     <!DOCTYPE html>
     <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICT 주요기술 동향 리포트</title>
     <style>
@@ -389,7 +393,10 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             {other_news_html}
         </div>
         <div class="footer"><p>본 리포트는 AI 기술을 활용해 자동 생성된 분석 보고서입니다。</p><p>Powered by Advanced IRONAGE AI Analytics</p></div>
-    </div></body></html>"""
+    </div></body></html>
+    """
+    html_body = html_template.format(report_title=report_title, doc_url=doc_url, news_items_html=news_items_html, other_news_html=other_news_html)
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = report_title
     msg["From"] = SENDER_EMAIL
