@@ -316,6 +316,10 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             if implications_match: implications = implications_match.group(2).strip()
         except Exception as e:
             print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
+        
+        main_content_html = main_content.replace('\n', '<br>')
+        implications_html = implications.replace('\n', '<br>')
+
         news_items_html += f"""
         <div class="news-item">
             <div class="news-header">
@@ -329,11 +333,11 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             <div class="analysis-container">
                 <div class="analysis-section summary">
                     <div class="analysis-title"><span class="icon">📝</span><strong>뉴스 주요내용</strong></div>
-                    <p class="analysis-text">{main_content.replace('\n', '<br>')}</p>
+                    <p class="analysis-text">{main_content_html}</p>
                 </div>
                 <div class="analysis-section implications">
                     <div class="analysis-title"><span class="icon">💡</span><strong>시사점 및 전망</strong></div>
-                    <p class="analysis-text">{implications.replace('\n', '<br>')}</p>
+                    <p class="analysis-text">{implications_html}</p>
                 </div>
             </div>
         </div>"""
@@ -348,7 +352,6 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             other_news_html += f'<li><a href="{item["link"]}" target="_blank" class="other-news-link"><span class="other-news-title">{item["title"]}</span><span class="other-news-source">({item["source"]})</span></a></li>'
         other_news_html += "</ul></div>"
         
-    # --- f-string 문법 오류를 피하기 위해 .format() 메소드 사용으로 변경 ---
     html_template = """
     <!DOCTYPE html>
     <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICT 주요기술 동향 리포트</title>
