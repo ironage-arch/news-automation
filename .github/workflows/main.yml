@@ -25,19 +25,19 @@ jobs:
         pip install feedparser requests openai google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
     - name: Create credentials.json from secret
-      # 셸의 echo 대신 안정적인 Python 스크립트를 사용하여 Base64 디코딩 및 파일 생성을 수행합니다.
       env:
         CREDENTIALS_B64: ${{ secrets.GOOGLE_CREDENTIALS }}
       run: |
         import base64
+        import os
         with open('credentials.json', 'wb') as f:
             f.write(base64.b64decode(os.environ['CREDENTIALS_B64']))
 
     - name: Create token.json from secret if it exists
-      if: ${{ secrets.GOOGLE_TOKEN }}
-      # 셸의 echo 대신 안정적인 Python 스크립트를 사용하여 Base64 디코딩 및 파일 생성을 수행합니다.
+      # 먼저 secret을 env 변수로 설정하고, if 조건문에서 env 변수를 확인하는 안정적인 방식으로 수정
       env:
         TOKEN_B64: ${{ secrets.GOOGLE_TOKEN }}
+      if: env.TOKEN_B64 != ''
       run: |
         import base64
         import os
