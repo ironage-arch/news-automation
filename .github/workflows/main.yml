@@ -27,22 +27,15 @@ jobs:
     - name: Create credentials.json from secret
       env:
         CREDENTIALS_B64: ${{ secrets.GOOGLE_CREDENTIALS }}
-      run: |
-        import base64
-        import os
-        with open('credentials.json', 'wb') as f:
-            f.write(base64.b64decode(os.environ['CREDENTIALS_B64']))
+      # python -c 옵션을 사용하여 셸에서 직접 파이썬 코드를 실행하도록 수정
+      run: python -c "import base64, os; f = open('credentials.json', 'wb'); f.write(base64.b64decode(os.environ['CREDENTIALS_B64'])); f.close()"
 
     - name: Create token.json from secret if it exists
-      # 먼저 secret을 env 변수로 설정하고, if 조건문에서 env 변수를 확인하는 안정적인 방식으로 수정
       env:
         TOKEN_B64: ${{ secrets.GOOGLE_TOKEN }}
       if: env.TOKEN_B64 != ''
-      run: |
-        import base64
-        import os
-        with open('token.json', 'wb') as f:
-            f.write(base64.b64decode(os.environ['TOKEN_B64']))
+      # python -c 옵션을 사용하여 셸에서 직접 파이썬 코드를 실행하도록 수정
+      run: python -c "import base64, os; f = open('token.json', 'wb'); f.write(base64.b64decode(os.environ['TOKEN_B64'])); f.close()"
 
     - name: Run Python script
       env:
