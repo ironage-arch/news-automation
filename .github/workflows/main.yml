@@ -25,17 +25,15 @@ jobs:
         pip install feedparser requests openai google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
     - name: Create credentials.json from secret
-      env:
-        CREDENTIALS_B64: ${{ secrets.GOOGLE_CREDENTIALS }}
-      # python -c 옵션을 사용하여 셸에서 직접 파이썬 코드를 실행하도록 수정
-      run: python -c "import base64, os; f = open('credentials.json', 'wb'); f.write(base64.b64decode(os.environ['CREDENTIALS_B64'])); f.close()"
+      # 작은따옴표를 사용하여 Secret 내용을 문자 그대로 파일에 쓰도록 수정 (JSON 깨짐 방지)
+      run: echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
 
     - name: Create token.json from secret if it exists
       env:
-        TOKEN_B64: ${{ secrets.GOOGLE_TOKEN }}
-      if: env.TOKEN_B64 != ''
-      # python -c 옵션을 사용하여 셸에서 직접 파이썬 코드를 실행하도록 수정
-      run: python -c "import base64, os; f = open('token.json', 'wb'); f.write(base64.b64decode(os.environ['TOKEN_B64'])); f.close()"
+        TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN }}
+      if: env.TOKEN_JSON != ''
+      # 작은따옴표를 사용하여 Secret 내용을 문자 그대로 파일에 쓰도록 수정 (JSON 깨짐 방지)
+      run: echo '${{ secrets.GOOGLE_TOKEN }}' > token.json
 
     - name: Run Python script
       env:
