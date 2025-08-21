@@ -16,7 +16,7 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-import difflib # ✨ 2. 중복 뉴스 제거 정확도를 위해 추가
+import difflib
 
 # ==============================================================================
 # --- 1. 사용자 설정 (GitHub Actions Secrets에서 자동으로 불러옵니다) ---
@@ -62,31 +62,27 @@ RECEIVER_EMAIL = [email.strip() for email in os.environ.get("RECEIVER_EMAIL", ""
 SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive']
 
 # ==============================================================================
-# --- 헬퍼 함수: URL 최종 목적지 추적 (✨ 3. 고도화) ---
+# --- 헬퍼 함수: URL 최종 목적지 추적 (고도화) ---
 # ==============================================================================
 def get_final_url(url):
     """리디렉션을 추적하여 최종 URL을 찾아내는 고도화된 함수"""
     try:
-        # 봇 차단을 우회하기 위한 헤더 설정
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        # HEAD 요청으로 시작하되, 실패 시 GET으로 재시도
         response = requests.head(url, headers=headers, allow_redirects=True, timeout=10)
         response.raise_for_status()
         return response.url
     except requests.RequestException:
         try:
-            # GET 요청은 더 안정적이지만, 더 많은 데이터를 소모함
             response = requests.get(url, headers=headers, allow_redirects=True, timeout=10)
             response.raise_for_status()
             return response.url
         except requests.RequestException as e:
-            # print(f"  (경고) URL 최종 목적지 추적 실패: {url}, 에러: {e}")
-            return url # 모든 시도 실패 시 원래 URL 반환
+            return url
 
 # ==============================================================================
-# --- 2. 뉴스 수집 함수 (✨ 2. 중복 제거 로직 개선) ---
+# --- 2. 뉴스 수집 함수 (중복 제거 로직 개선) ---
 # ==============================================================================
 def get_news_data():
     """여러 RSS 피드와 키워드에서 뉴스를 수집하고 중복을 정확하게 제거하는 함수"""
@@ -119,24 +115,20 @@ def get_news_data():
                 clean_title = re.sub('<[^>]*>', '', item["title"])
                 published_date = datetime.datetime.strptime(item['pubDate'], '%a, %d %b %Y %H:%M:%S +0900').strftime('%Y-%m-%d')
                 raw_link = item.get("originallink", item["link"])
-                # 네이버 링크는 이미 최종 링크인 경우가 많으므로 추적 생략 가능
                 news_list.append({"title": clean_title, "link": raw_link, "published": published_date, "source": "Naver News"})
         except Exception as e:
             print(f"  (경고) 네이버 뉴스 API 불러오기 실패 ({query}): {e}")
 
-    # 중복 제거 로직 강화: 링크와 제목 유사도를 함께 고려
     news_list.sort(key=lambda x: x['published'], reverse=True)
     unique_news_items = []
     seen_links = set()
     seen_titles = []
 
     for item in news_list:
-        # 1. 링크 중복 체크
         normalized_link = re.sub(r'^https?:\/\/(www\.)?', '', item['link']).rstrip('/')
         if normalized_link in seen_links:
             continue
         
-        # 2. 제목 유사도 체크 (85% 이상 유사하면 중복으로 간주)
         is_similar = False
         for seen_title in seen_titles:
             similarity = difflib.SequenceMatcher(None, item['title'], seen_title).ratio()
@@ -152,7 +144,7 @@ def get_news_data():
     return unique_news_items
 
 # ==============================================================================
-# --- 3. AI 뉴스 선별 함수 (로직은 유지, 후속 분석 함수가 중요) ---
+# --- 3. AI 뉴스 선별 함수 ---
 # ==============================================================================
 def filter_news_by_ai(news_items):
     """AI를 사용해 정책 입안자에게 가장 관련성 높은 뉴스를 선별하는 함수"""
@@ -213,7 +205,7 @@ def filter_news_by_ai(news_items):
         return news_items[:20]
 
 # ==============================================================================
-# --- 4. AI 심층 분석 함수 (✨ 1. 보고서 형식 구체화) ---
+# --- 4. AI 심층 분석 함수 (보고서 형식 구체화) ---
 # ==============================================================================
 def analyze_news_with_ai(news_item):
     """AI에게 뉴스를 보내 구체화된 전문가 보고서 형식으로 심층 분석을 요청하는 함수"""
@@ -254,7 +246,7 @@ def analyze_news_with_ai(news_item):
         return "AI 심층 분석에 실패했습니다."
 
 # ==============================================================================
-# --- 5. 구글 문서 생성 함수 (✨ 4. 디자인 개선, ✨ 5. AI 명시) ---
+# --- 5. 구글 문서 생성 함수 (API 오류 수정) ---
 # ==============================================================================
 def get_google_services():
     """Google Docs와 Drive API 서비스를 인증하고 생성하는 함수"""
@@ -295,11 +287,9 @@ def generate_google_doc_report(analyzed_data):
     document_title = f"ICT 주요 기술 동향 보고서 ({current_date})"
     
     try:
-        # 1. 문서 생성
         document = docs_service.documents().create(body={'title': document_title}).execute()
         document_id = document.get('documentId')
         
-        # 2. 문서 접근 권한 설정
         permission = {'type': 'anyone', 'role': 'reader'}
         drive_service.permissions().create(fileId=document_id, body=permission).execute()
         print("  > 문서 접근 권한을 공개로 설정했습니다.")
@@ -307,32 +297,44 @@ def generate_google_doc_report(analyzed_data):
         document_url = f"https://docs.google.com/document/d/{document_id}/edit"
         print(f"  > 새 문서가 생성되었습니다: {document_url}")
 
-        # 3. 현대적인 스타일로 내용 추가
         requests = []
         index = 1
         
-        # --- 문서 전체 스타일링 ---
-        # 제목
         requests.append({'insertText': {'location': {'index': index}, 'text': document_title + '\n'}})
         requests.append({'updateParagraphStyle': {'range': {'startIndex': 1, 'endIndex': len(document_title)+1}, 'paragraphStyle': {'namedStyleType': 'TITLE', 'alignment': 'CENTER', 'spaceBelow': {'magnitude': 12, 'unit': 'PT'}}, 'fields': '*'}})
         index += len(document_title) + 1
 
-        # AI 분석 고지 문구 (✨ 5)
         disclaimer = "본 보고서는 AI가 주요 뉴스를 분석하여 작성했으며, 개인적인 의견을 포함하지 않습니다.\n\n"
         requests.append({'insertText': {'location': {'index': index}, 'text': disclaimer}})
         requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(disclaimer)}, 'paragraphStyle': {'alignment': 'CENTER'}, 'fields': 'alignment'}})
         requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(disclaimer)}, 'textStyle': {'fontSize': {'magnitude': 9, 'unit': 'PT'}, 'foregroundColor': {'color': {'rgbColor': {'red': 0.4, 'green': 0.4, 'blue': 0.4}}}}, 'fields': 'fontSize,foregroundColor'}})
         index += len(disclaimer)
 
-        # --- 각 뉴스 항목 스타일링 ---
         for i, data in enumerate(analyzed_data):
-            # 뉴스 제목 (HEADING_1 스타일)
             news_title = f"{i+1}. {data['title']}\n"
             requests.append({'insertText': {'location': {'index': index}, 'text': news_title}})
-            requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(news_title)}, 'paragraphStyle': {'namedStyleType': 'HEADING_1', 'spaceAbove': {'magnitude': 18, 'unit': 'PT'}, 'spaceBelow': {'magnitude': 4, 'unit': 'PT'}, 'borderBottom': {'width': {'magnitude': 1, 'unit': 'PT'}, 'padding': {'magnitude': 2, 'unit': 'PT'}, 'color': {'color': {'rgbColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8}}}}}, 'fields': '*'}})
+            
+            # --- 💡 오류 수정 지점 ---
+            # borderBottom 객체에 'dashStyle': 'SOLID'를 추가합니다.
+            border_bottom_style = {
+                'width': {'magnitude': 1, 'unit': 'PT'},
+                'padding': {'magnitude': 2, 'unit': 'PT'},
+                'color': {'color': {'rgbColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8}}},
+                'dashStyle': 'SOLID' 
+            }
+            
+            requests.append({'updateParagraphStyle': {
+                'range': {'startIndex': index, 'endIndex': index + len(news_title)},
+                'paragraphStyle': {
+                    'namedStyleType': 'HEADING_1',
+                    'spaceAbove': {'magnitude': 18, 'unit': 'PT'},
+                    'spaceBelow': {'magnitude': 4, 'unit': 'PT'},
+                    'borderBottom': border_bottom_style
+                },
+                'fields': 'namedStyleType,spaceAbove,spaceBelow,borderBottom'
+            }})
             index += len(news_title)
             
-            # 메타 정보 (출처, 발행일, 링크)
             meta_text = f"출처: {data['source']} | 발행일: {data['published']}\n"
             requests.append({'insertText': {'location': {'index': index}, 'text': meta_text}})
             requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(meta_text)},'paragraphStyle': {'spaceBelow': {'magnitude': 6, 'unit': 'PT'}},'fields': 'spaceBelow'}})
@@ -344,10 +346,8 @@ def generate_google_doc_report(analyzed_data):
             requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(link_text)}, 'textStyle': {'fontSize': {'magnitude': 9, 'unit': 'PT'}, 'link': {'url': data['link']}}, 'fields': 'fontSize,link'}})
             index += len(link_text)
             
-            # AI 분석 결과 파싱 및 스타일링
             analysis_text = data.get('analysis_result', '')
             
-            # 정규식을 사용하여 각 섹션 추출
             sections = {
                 "핵심 요약": re.search(r'\*\*(핵심 요약):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL),
                 "주요 내용": re.search(r'\*\*(주요 내용):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL),
@@ -357,16 +357,13 @@ def generate_google_doc_report(analyzed_data):
             
             for title, match in sections.items():
                 if match:
-                    # 소제목 (HEADING_3 스타일)
                     section_title = f"{title}\n"
                     requests.append({'insertText': {'location': {'index': index}, 'text': section_title}})
                     requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(section_title)}, 'paragraphStyle': {'namedStyleType': 'HEADING_3', 'spaceAbove': {'magnitude': 12, 'unit': 'PT'}, 'spaceBelow': {'magnitude': 3, 'unit': 'PT'}}, 'fields': '*'}})
                     index += len(section_title)
                     
-                    # 내용
                     content_body = match.group(2).strip().replace("   -", "-").replace("  -", "-") + "\n\n"
                     requests.append({'insertText': {'location': {'index': index}, 'text': content_body}})
-                    # 글머리 기호 자동 적용
                     if "- " in content_body:
                          requests.append({'createParagraphBullets': {'range': {'startIndex': index, 'endIndex': index + len(content_body)}, 'bulletPreset': 'BULLET_DISC_CIRCLE_SQUARE'}})
                     index += len(content_body)
@@ -378,27 +375,15 @@ def generate_google_doc_report(analyzed_data):
         return None, None
 
 # ==============================================================================
-# --- 6. Gmail 전송 함수 (내용 파싱 로직 수정) ---
+# --- 6. Gmail 전송 함수 (기존과 동일) ---
 # ==============================================================================
-# send_gmail_report 함수는 기존 코드를 그대로 사용해도 괜찮지만,
-# 새 분석 포맷에 맞춰 파싱하는 부분이 견고하지 않을 수 있습니다.
-# 아래 코드는 새 포맷을 더 잘 처리하도록 개선한 버전입니다.
-
 def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
-    """분석 리포트를 새로운 형식의 이메일로 전송하는 함수"""
-    # (HTML 템플릿 등 기존 코드와 동일하여 생략)
-    # ...
-    pass # 실제로는 전체 함수 코드가 여기에 위치해야 합니다.
-    # 기존 코드에서 HTML 템플릿의 <div class="header"> 부분만 아래와 같이 수정합니다.
-    # <div class="header">
-    #   <h1>{report_title}</h1>
-    #   <p>오늘의 핵심 기술 뉴스를 AI가 분석해드립니다.</p>
-    #   <p style="font-size: 12px; opacity: 0.7; margin-top: 15px;">※ 본 보고서는 AI 분석에 기반하며, 개인적인 의견을 포함하지 않습니다.</p>
-    # </div>
-
+    # 이 함수는 수정 없이 그대로 사용 가능합니다.
+    # ... (기존 send_gmail_report 함수 코드)
+    pass
 
 # ==============================================================================
-# --- 7. 메인 실행 부분 (변경 없음) ---
+# --- 7. 메인 실행 부분 (기존과 동일) ---
 # ==============================================================================
 if __name__ == "__main__":
     print("==============================================")
