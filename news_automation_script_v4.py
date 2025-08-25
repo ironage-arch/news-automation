@@ -477,7 +477,7 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
     </div></body></html>"""
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = report_title
+    msg["Subject"] = Header(report_title, 'utf-8')
     msg["From"] = SENDER_EMAIL
     msg["To"] = ", ".join(RECEIVER_EMAIL)
     msg["Date"] = formatdate(localtime=True)
@@ -532,6 +532,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
