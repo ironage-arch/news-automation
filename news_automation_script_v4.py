@@ -113,7 +113,7 @@ def get_news_data():
             data = response.json()
             for item in data.get("items", []):
                 clean_title = re.sub('<[^>]*>', '', item["title"])
-                published_date = datetime.datetime.strptime(item['pubDate'], '%a, %-d %b %Y %H:%M:%S +0900').strftime('%Y-%m-%d')
+                published_date = datetime.datetime.strptime(item['pubDate'], '%a, %d %b %Y %H:%M:%S +0900').strftime('%Y-%m-%d')
                 raw_link = item.get("originallink", item["link"])
                 news_list.append({"title": clean_title, "link": raw_link, "published": published_date, "source": "Naver News"})
         except Exception as e:
@@ -514,6 +514,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
