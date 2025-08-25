@@ -487,7 +487,8 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(SENDER_EMAIL, GMAIL_PASSWORD)
-        server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
+        server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string().encode('utf-8'))
+        
         server.quit()
         print(f"  > ✅ 이메일이 {', '.join(RECEIVER_EMAIL)} 주소로 성공적으로 발송되었습니다.")
     except Exception as e:
@@ -532,6 +533,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
