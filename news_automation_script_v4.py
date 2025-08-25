@@ -372,9 +372,13 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
     # ... (생략) ...
     news_items_html = ""
     for i, data in enumerate(analyzed_data):
-        # ... (분석 결과 파싱 로직) ...
+        # ... (분석 결과 파싱 로직은 그대로) ...
+        # if implications_match: implications = implications_match.group(2).strip()
 
-        # ✅ 해결책: += 연산자를 사용하여 HTML 내용을 계속 누적합니다.
+        # ✅ 해결책: replace() 결과를 미리 변수에 저장합니다.
+        main_content_html = main_content.replace('\n', '<br>')
+        implications_html = implications.replace('\n', '<br>')
+
         news_items_html += f"""
         <div class="news-item">
             <div class="news-header">
@@ -388,15 +392,17 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             <div class="analysis-container">
                 <div class="analysis-section summary">
                     <div class="analysis-title"><span class="icon">📝</span><strong>주요 내용</strong></div>
-                    <p class="analysis-text">{main_content.replace('\n', '<br>')}</p>
+                    {/* ✅ 해결책: 역슬래시가 없는 깨끗한 변수를 사용합니다. */}
+                    <p class="analysis-text">{main_content_html}</p>
                 </div>
                 <div class="analysis-section implications">
                     <div class="analysis-title"><span class="icon">💡</span><strong>시사점 및 전망</strong></div>
-                    <p class="analysis-text">{implications.replace('\n', '<br>')}</p>
+                    {/* ✅ 해결책: 역슬래시가 없는 깨끗한 변수를 사용합니다. */}
+                    <p class="analysis-text">{implications_html}</p>
                 </div>
             </div>
         </div>"""
-
+        
     # 2. 기타 뉴스 HTML 생성 (변경 없음)
     other_news_html = ""
     if other_news:
@@ -515,6 +521,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
