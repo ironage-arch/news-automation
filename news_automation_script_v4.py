@@ -371,6 +371,24 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
     news_items_html = ""
     for i, data in enumerate(analyzed_data):
         # ... (생략) ...
+        # --- ✅ 해결책: 이 부분을 추가하거나 복원해주세요 ---
+        analysis_text = data.get('analysis_result', '')
+        main_content = "주요내용 정보를 찾을 수 없습니다." # 기본값 설정
+        implications = "시사점 정보를 찾을 수 없습니다." # 기본값 설정
+
+        try:
+            main_content_match = re.search(r'\*\*(주요 내용):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
+            if main_content_match:
+                main_content = main_content_match.group(2).strip()
+
+            implications_match = re.search(r'\*\*(시사점 및 전망):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
+            if implications_match:
+                implications = implications_match.group(2).strip()
+        
+        except Exception as e:
+            print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
+        # --- 여기까지가 추가/복원될 부분입니다 ---
+        
         main_content_html = main_content.replace('\n', '<br>')
         implications_html = implications.replace('\n', '<br>')
 
@@ -514,6 +532,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
