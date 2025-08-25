@@ -369,29 +369,16 @@ def generate_google_doc_report(analyzed_data):
 # --- 6. Gmail 전송 함수 (템플릿 및 파싱 로직 수정) ---
 # ==============================================================================
 def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
-    """분석 리포트를 새로운 형식의 이메일로 전송하는 함수"""
-    # 1. 심층 분석된 뉴스 HTML 생성
+    # ... (생략) ...
     news_items_html = ""
     for i, data in enumerate(analyzed_data):
-        analysis_text = data.get('analysis_result', '')
-        main_content = "주요내용 정보를 찾을 수 없습니다."
-        implications = "시사점 정보를 찾을 수 없습니다."
+        # ... (분석 결과 파싱 로직) ...
 
-        try:
-            # 정규식 패턴 수정 ('뉴스 주요내용' -> '주요 내용')
-            main_content_match = re.search(r'\*\*(주요 내용):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
-            if main_content_match: main_content = main_content_match.group(2).strip()
-
-            implications_match = re.search(r'\*\*(시사점 및 전망):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
-            if implications_match: implications = implications_match.group(2).strip()
-        
-        except Exception as e:
-            print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
-
-        news_items_html = f"""
+        # ✅ 해결책: += 연산자를 사용하여 HTML 내용을 계속 누적합니다.
+        news_items_html += f"""
         <div class="news-item">
             <div class="news-header">
-                <h3 class="news-title">{data['title']}</h3>
+                <h3 class="news-title">[{i+1}] {data['title']}</h3>
                 <div class="news-meta">
                     <span><strong>출처:</strong> {data['source']}</span>
                     <span><strong>발행일:</strong> {data['published']}</span>
@@ -528,6 +515,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
