@@ -217,19 +217,20 @@ def analyze_news_with_ai(news_item):
     - 원문 링크: {news_item['link']}
 
     [보고서 작성 형식]
-    1. **핵심 요약:** (기사 전체 내용을 단 한 문장으로 압축하여 요약)
-    2. **주요 내용:** (기사의 핵심 사실과 정보를 3개 항목으로 나누어箇条書き(bullet point)로 정리)
-       - 
-       - 
-       - 
-    3. **정책적 시사점:** (이 뉴스가 ICT 표준, 규제, 정부 정책에 미치는 영향이나 의미를 분석)
-    4. **기대 효과 및 전망:** (향후 기술 발전, 시장 변화, 사회적 파급 효과 등을 예측)
+    - **주요 내용:** (기사의 핵심 사실과 정보를 한 문장으로 요약한 뒤, 3개의 글머리 기호(bullet point)로 상세 정리)
+      - 
+      - 
+      - 
+    - **시사점 및 전망:** (이 뉴스가 ICT 표준, 규제, 시장에 미치는 영향과 향후 전망을 한 문장으로 요약한 뒤, 3개의 글머리 기호(bullet point)로 상세 분석)
+      - 
+      - 
+      - 
     """
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "당신은 ICT 표준 정책 분석 최고 전문가입니다. 모든 답변은 지정된 4가지 보고서 형식에 맞춰, 쉽고 명확한 언어로 작성해 주세요."},
+                {"role": "system", "content": "당신은 ICT 표준 정책 분석 최고 전문가입니다. 모든 답변은 '주요 내용', '시사점 및 전망' 각각에 대해 한 문장 요약과 3개의 글머리 기호 형식으로 작성해 주세요."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.5, max_tokens=1024,
@@ -281,98 +282,212 @@ def generate_google_doc_report(analyzed_data):
     document_title = f"ICT 주요 기술 동향 보고서 ({current_date})"
     
     try:
+        # 1. 문서 생성
         document = docs_service.documents().create(body={'title': document_title}).execute()
         document_id = document.get('documentId')
-        
-        permission = {'type': 'anyone', 'role': 'reader'}
-        drive_service.permissions().create(fileId=document_id, body=permission).execute()
-        print("  > 문서 접근 권한을 공개로 설정했습니다.")
-
         document_url = f"https://docs.google.com/document/d/{document_id}/edit"
         print(f"  > 새 문서가 생성되었습니다: {document_url}")
 
+        # 2. 스타일링된 내용 추가
         requests = []
         index = 1
+
+        # --- 문서 제목 스타일링 ---
+        title_text = f"{document_title}\n"
+        requests.append({'insertText': {'location': {'index': index}, 'text': title_text}})
+        requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(title_text)}, 'paragraphStyle': {'alignment': 'CENTER'}, 'fields': 'alignment'}})
+        requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(title_text) - 1}, 'textStyle': {'fontSize': {'magnitude': 18, 'unit': 'PT'}, 'bold': True}, 'fields': 'fontSize,bold'}})
+        index += len(title_text)
         
-        requests.append({'insertText': {'location': {'index': index}, 'text': document_title + '\n'}})
-        requests.append({'updateParagraphStyle': {'range': {'startIndex': 1, 'endIndex': len(document_title)+1}, 'paragraphStyle': {'namedStyleType': 'TITLE', 'alignment': 'CENTER', 'spaceBelow': {'magnitude': 12, 'unit': 'PT'}}, 'fields': '*'}})
-        index += len(document_title) + 1
+        # --- AI 분석 고지 문구 ---
+        disclaimer_text = "※ 본 보고서의 내용은 AI가 생성한 분석으로, 개인적인 의견을 포함하지 않습니다.\n\n"
+        requests.append({'insertText': {'location': {'index': index}, 'text': disclaimer_text}})
+        requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(disclaimer_text)}, 'paragraphStyle': {'alignment': 'CENTER'}, 'fields': 'alignment'}})
+        requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(disclaimer_text) - 2}, 'textStyle': {'fontSize': {'magnitude': 9, 'unit': 'PT'}, 'italic': True, 'foregroundColor': {'color': {'rgbColor': {'red': 0.5, 'green': 0.5, 'blue': 0.5}}}}, 'fields': 'fontSize,italic,foregroundColor'}})
+        index += len(disclaimer_text)
 
-        disclaimer = "본 보고서는 AI가 주요 뉴스를 분석하여 작성했으며, 개인적인 의견을 포함하지 않습니다.\n\n"
-        requests.append({'insertText': {'location': {'index': index}, 'text': disclaimer}})
-        requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(disclaimer)}, 'paragraphStyle': {'alignment': 'CENTER'}, 'fields': 'alignment'}})
-        requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(disclaimer)}, 'textStyle': {'fontSize': {'magnitude': 9, 'unit': 'PT'}, 'foregroundColor': {'color': {'rgbColor': {'red': 0.4, 'green': 0.4, 'blue': 0.4}}}}, 'fields': 'fontSize,foregroundColor'}})
-        index += len(disclaimer)
 
+        # --- 각 뉴스 아이템 스타일링 ---
         for i, data in enumerate(analyzed_data):
-            news_title = f"{i+1}. {data['title']}\n"
+            # 뉴스 제목
+            news_title = f"[{i+1}] {data['title']}\n"
             requests.append({'insertText': {'location': {'index': index}, 'text': news_title}})
-            
-            border_bottom_style = {
-                'width': {'magnitude': 1, 'unit': 'PT'},
-                'padding': {'magnitude': 2, 'unit': 'PT'},
-                'color': {'color': {'rgbColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8}}},
-                'dashStyle': 'SOLID' 
-            }
-            
-            requests.append({'updateParagraphStyle': {
-                'range': {'startIndex': index, 'endIndex': index + len(news_title)},
-                'paragraphStyle': {
-                    'namedStyleType': 'HEADING_1',
-                    'spaceAbove': {'magnitude': 18, 'unit': 'PT'},
-                    'spaceBelow': {'magnitude': 4, 'unit': 'PT'},
-                    'borderBottom': border_bottom_style
-                },
-                'fields': 'namedStyleType,spaceAbove,spaceBelow,borderBottom'
-            }})
+            requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(news_title)}, 'textStyle': {'fontSize': {'magnitude': 14, 'unit': 'PT'}, 'bold': True}, 'fields': 'fontSize,bold'}})
             index += len(news_title)
             
+            # 메타데이터 (출처, 발행일, 링크)
             meta_text = f"출처: {data['source']} | 발행일: {data['published']}\n"
             requests.append({'insertText': {'location': {'index': index}, 'text': meta_text}})
-            requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(meta_text)},'paragraphStyle': {'spaceBelow': {'magnitude': 6, 'unit': 'PT'}},'fields': 'spaceBelow'}})
             requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(meta_text)}, 'textStyle': {'fontSize': {'magnitude': 9, 'unit': 'PT'}, 'foregroundColor': {'color': {'rgbColor': {'red': 0.5, 'green': 0.5, 'blue': 0.5}}}}, 'fields': 'fontSize,foregroundColor'}})
             index += len(meta_text)
-
-            link_text = f"원본 링크 바로가기\n\n"
+            
+            link_text = f"원본 링크: {data['link']}\n\n"
             requests.append({'insertText': {'location': {'index': index}, 'text': link_text}})
             requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(link_text)}, 'textStyle': {'fontSize': {'magnitude': 9, 'unit': 'PT'}, 'link': {'url': data['link']}}, 'fields': 'fontSize,link'}})
             index += len(link_text)
-            
-            analysis_text = data.get('analysis_result', '')
-            
-            sections = {
-                "핵심 요약": re.search(r'\*\*(핵심 요약):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL),
-                "주요 내용": re.search(r'\*\*(주요 내용):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL),
-                "정책적 시사점": re.search(r'\*\*(정책적 시사점):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL),
-                "기대 효과 및 전망": re.search(r'\*\*(기대 효과 및 전망):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
-            }
-            
-            for title, match in sections.items():
-                if match:
-                    section_title = f"{title}\n"
-                    requests.append({'insertText': {'location': {'index': index}, 'text': section_title}})
-                    requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(section_title)}, 'paragraphStyle': {'namedStyleType': 'HEADING_3', 'spaceAbove': {'magnitude': 12, 'unit': 'PT'}, 'spaceBelow': {'magnitude': 3, 'unit': 'PT'}}, 'fields': '*'}})
-                    index += len(section_title)
-                    
-                    content_body = match.group(2).strip().replace("   -", "-").replace("  -", "-") + "\n\n"
-                    requests.append({'insertText': {'location': {'index': index}, 'text': content_body}})
-                    if "- " in content_body:
-                         requests.append({'createParagraphBullets': {'range': {'startIndex': index, 'endIndex': index + len(content_body)}, 'bulletPreset': 'BULLET_DISC_CIRCLE_SQUARE'}})
-                    index += len(content_body)
 
+            # 분석 내용 파싱 (정규식 수정)
+            analysis_text = data.get('analysis_result', '')
+            main_content_match = re.search(r'\*\*(주요 내용):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
+            implications_match = re.search(r'\*\*(시사점 및 전망):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
+            main_content = main_content_match.group(2).strip() if main_content_match else "주요내용 정보 없음"
+            implications = implications_match.group(2).strip() if implications_match else "시사점 정보 없음"
+
+            # 주요 내용 섹션 (타이틀 수정)
+            main_content_title = "주요 내용\n"
+            requests.append({'insertText': {'location': {'index': index}, 'text': main_content_title}})
+            requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(main_content_title)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+            requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(main_content_title)}, 'paragraphStyle': {'shading': {'backgroundColor': {'color': {'rgbColor': {'red': 0.91, 'green': 0.95, 'blue': 1.0}}}}}, 'fields': 'shading'}})
+            index += len(main_content_title)
+            
+            main_content_body = f"{main_content}\n\n"
+            requests.append({'insertText': {'location': {'index': index}, 'text': main_content_body}})
+            index += len(main_content_body)
+            
+            print(main_content_body)
+
+            # 시사점 및 전망 섹션
+            implications_title = "시사점 및 전망\n"
+            requests.append({'insertText': {'location': {'index': index}, 'text': implications_title}})
+            requests.append({'updateTextStyle': {'range': {'startIndex': index, 'endIndex': index + len(implications_title)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+            requests.append({'updateParagraphStyle': {'range': {'startIndex': index, 'endIndex': index + len(implications_title)}, 'paragraphStyle': {'shading': {'backgroundColor': {'color': {'rgbColor': {'red': 1.0, 'green': 0.96, 'blue': 0.9}}}}}, 'fields': 'shading'}})
+            index += len(implications_title)
+
+            implications_body = f"{implications}\n\n"
+            requests.append({'insertText': {'location': {'index': index}, 'text': implications_body}})
+            index += len(implications_body)
+
+        # 3. 일괄 업데이트 실행
         docs_service.documents().batchUpdate(documentId=document_id, body={'requests': requests}).execute()
+        
         return document_url, document_title
     except Exception as e:
         print(f"  (오류) 구글 문서 생성/스타일링 실패: {e}")
         return None, None
 
 # ==============================================================================
-# --- 6. Gmail 전송 함수 (기존과 동일) ---
+# --- 6. Gmail 전송 함수 (템플릿 및 파싱 로직 수정) ---
 # ==============================================================================
 def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
-    # 이 함수는 수정 없이 그대로 사용 가능합니다.
-    # ... (기존 send_gmail_report 함수 코드)
-    pass
+    """분석 리포트를 새로운 형식의 이메일로 전송하는 함수"""
+    # 1. 심층 분석된 뉴스 HTML 생성
+    news_items_html = ""
+    for i, data in enumerate(analyzed_data):
+        analysis_text = data.get('analysis_result', '')
+        main_content = "주요내용 정보를 찾을 수 없습니다."
+        implications = "시사점 정보를 찾을 수 없습니다."
+
+        try:
+            # 정규식 패턴 수정 ('뉴스 주요내용' -> '주요 내용')
+            main_content_match = re.search(r'\*\*(주요 내용):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
+            if main_content_match: main_content = main_content_match.group(2).strip()
+
+            implications_match = re.search(r'\*\*(시사점 및 전망):\*\*\s*(.*?)(?=\s*\*\*|\Z)', analysis_text, re.DOTALL)
+            if implications_match: implications = implications_match.group(2).strip()
+        
+        except Exception as e:
+            print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
+
+        news_items_html += f"""
+        <div class="news-item">
+            <div class="news-header">
+                <h3 class="news-title">{data['title']}</h3>
+                <div class="news-meta">
+                    <span><strong>출처:</strong> {data['source']}</span>
+                    <span><strong>발행일:</strong> {data['published']}</span>
+                    <span><a href="{data['link']}" target="_blank">원문 기사 보기 &rarr;</a></span>
+                </div>
+            </div>
+            <div class="analysis-container">
+                <div class="analysis-section summary">
+                    <div class="analysis-title"><span class="icon">📝</span><strong>주요 내용</strong></div>
+                    <p class="analysis-text">{main_content.replace('\n', '<br>')}</p>
+                </div>
+                <div class="analysis-section implications">
+                    <div class="analysis-title"><span class="icon">💡</span><strong>시사점 및 전망</strong></div>
+                    <p class="analysis-text">{implications.replace('\n', '<br>')}</p>
+                </div>
+            </div>
+        </div>"""
+
+    # 2. 기타 뉴스 HTML 생성 (변경 없음)
+    other_news_html = ""
+    if other_news:
+        other_news_html += """
+        <div class="other-news-section">
+            <h2>기타 수집된 뉴스</h2>
+            <ul class="other-news-list">
+        """
+        for item in other_news:
+            other_news_html += f'<li><a href="{item["link"]}" target="_blank" class="other-news-link"><span class="other-news-title">{item["title"]}</span><span class="other-news-source">({item["source"]})</span></a></li>'
+        
+        other_news_html += "</ul></div>"
+
+
+    # 3. 전체 이메일 본문 조합 (템플릿 수정)
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICT 주요기술 동향 리포트</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        body {{ margin: 0; padding: 0; background-color: #f4f7fa; font-family: 'Noto Sans KR', sans-serif; }}
+        .email-container {{ max-width: 700px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05); border: 1px solid #e9e9e9; }}
+        .header {{ background: linear-gradient(135deg, #1D2B4A 0%, #2C3E6A 100%); color: #ffffff; padding: 40px; text-align: center; }}
+        .header h1 {{ margin: 0; font-size: 28px; font-weight: 700; }} .header p {{ margin: 8px 0 0; font-size: 16px; font-weight: 300; opacity: 0.8; }}
+        .disclaimer {{ font-size: 12px; opacity: 0.7; font-style: italic; margin-top: 15px;}}
+        .main-content {{ padding: 40px; }}
+        .report-intro {{ text-align: center; padding-bottom: 30px; border-bottom: 1px solid #eaeaea; margin-bottom: 30px; }}
+        .button {{ display: inline-block; background: linear-gradient(135deg, #4A6DFF 0%, #6284FF 100%); color: #ffffff; padding: 14px 28px; border-radius: 50px; text-decoration: none; font-weight: 500; font-size: 15px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(74, 109, 255, 0.3); }}
+        .button:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(74, 109, 255, 0.4); }}
+        .news-item {{ border: 1px solid #e9e9e9; border-radius: 12px; margin-bottom: 25px; overflow: hidden; transition: all 0.3s ease; }}
+        .news-item:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07); }}
+        .news-header {{ padding: 25px; }} .news-title {{ font-size: 20px; font-weight: 700; color: #1D2B4A; margin: 0 0 15px; }}
+        .news-meta {{ font-size: 13px; color: #777; }} .news-meta a {{ color: #4A6DFF; text-decoration: none; font-weight: 500; }} .news-meta span {{ margin-right: 15px; }}
+        .analysis-container {{ padding: 0 25px 25px 25px; border-top: 1px solid #e9e9e9; background-color: #f8f9fc; }}
+        .analysis-section {{ padding: 20px; border-radius: 8px; margin-top: 15px; }}
+        .analysis-section.summary {{ background-color: #e9f3ff; border-left: 4px solid #4A6DFF; }}
+        .analysis-section.implications {{ background-color: #fff6e9; border-left: 4px solid #ff9f43; }}
+        .analysis-title {{ display: flex; align-items: center; font-size: 16px; font-weight: 700; color: #1D2B4A; margin-bottom: 10px; }}
+        .analysis-title .icon {{ font-size: 20px; margin-right: 10px; }}
+        .analysis-text {{ font-size: 14px; line-height: 1.7; color: #333; margin: 0; }}
+        .other-news-section {{ margin-top: 40px; padding-top: 30px; border-top: 1px solid #eaeaea; }}
+        .other-news-section h2 {{ font-size: 20px; font-weight: 700; color: #1D2B4A; margin-bottom: 20px; text-align: center; }}
+        .other-news-list {{ list-style-type: none; padding: 0; margin: 0; }}
+        .other-news-list li {{ border-radius: 8px; margin-bottom: 5px; border-left: 3px solid #ccc; background-color: #f8f9fc; transition: background-color 0.2s ease; }}
+        .other-news-list li:hover {{ background-color: #f1f3f8; }}
+        .other-news-link {{ display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; text-decoration: none; color: inherit; }}
+        .other-news-title {{ color: #333; font-size: 14px; }}
+        .other-news-source {{ color: #888; font-size: 12px; white-space: nowrap; margin-left: 15px; }}
+        .footer {{ text-align: center; padding: 30px; background-color: #f4f7fa; font-size: 13px; color: #999; }}
+    </style></head>
+    <body><div class="email-container">
+        <div class="header"><h1>{report_title}</h1><p>오늘의 핵심 기술 뉴스를 AI가 분석해드립니다.</p><p class="disclaimer">※ 본 보고서의 내용은 AI가 생성한 분석으로, 개인적인 의견을 포함하지 않습니다.</p></div>
+        <div class="main-content">
+            <div class="report-intro">
+                <a href="{doc_url}" class="button" target="_blank">📄 전체 보고서 보기</a>
+            </div>
+            {news_items_html}
+            {other_news_html}
+        </div>
+        <div class="footer"><p>본 리포트는 AI 기술을 활용해 자동 생성된 분석 보고서입니다.</p><p>Powered by Advanced IRONAGE AI Analytics</p></div>
+    </div></body></html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = report_title
+    msg["From"] = SENDER_EMAIL
+    msg["To"] = ", ".join(RECEIVER_EMAIL)
+    msg["Date"] = formatdate(localtime=True)
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, GMAIL_PASSWORD)
+        server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, msg.as_string())
+        server.quit()
+        print(f"  > ✅ 이메일이 {', '.join(RECEIVER_EMAIL)} 주소로 성공적으로 발송되었습니다.")
+    except Exception as e:
+        print(f"  (오류) 이메일 발송에 실패했습니다: {e}")
 
 # ==============================================================================
 # --- 7. 메인 실행 부분 (기존과 동일) ---
@@ -413,3 +528,4 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
