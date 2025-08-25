@@ -388,7 +388,7 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         except Exception as e:
             print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
 
-        news_items_html += f"""
+        news_items_html = f"""
         <div class="news-item">
             <div class="news-header">
                 <h3 class="news-title">{data['title']}</h3>
@@ -528,6 +528,7 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
+
 
 
 
