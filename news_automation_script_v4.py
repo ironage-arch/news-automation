@@ -794,33 +794,57 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         main_content = "주요내용 정보를 찾을 수 없습니다."
         implications = "시사점 정보를 찾을 수 없습니다."
 
-        # --- [수정] 복잡한 if/else를 단순하고 안정적인 로직으로 변경 ---
+        # 🔧 수정된 파싱 로직 - 다양한 형식을 처리할 수 있도록 개선
         try:
-            # "시사점 및 전망" 키워드를 기준으로 텍스트를 분리 (가장 안정적인 방법)
-            # re.IGNORECASE 플래그로 대소문자 구분 없이, maxsplit=1로 한번만 나눔
-            parts = re.split(r'시사점\s*및\s*전망', analysis_text, maxsplit=1, flags=re.IGNORECASE)
+            print(f"  [디버그] 분석 텍스트 일부: {analysis_text[:200]}...")
             
-            if len(parts) == 2:
-                # 첫 번째 부분에서 '주요 내용' 관련 헤더 텍스트와 마크다운 제거
-                main_content = re.sub(r'(?:###\s?)?(?:\*\*)?\s*[1.\s]*주요\s*내용\s*(?:요약)?\s*(?:\*\*)?', '', parts[0]).strip()
-                implications = parts[1].strip()
+            # 패턴 1: ### **1. 주요 내용 요약** 형식
+            main_pattern1 = re.search(r'### \*\*1\. 주요 내용 요약\*\*(.*?)### \*\*2\. 시사점 및 전망\*\*', analysis_text, re.DOTALL)
+            if main_pattern1:
+                main_content = main_pattern1.group(1).strip()
+                print(f"  [디버그] 패턴1로 주요내용 추출 성공")
             else:
-                # 분리에 실패할 경우, 원본 텍스트를 그대로 사용 (예외 방지)
-                main_content = analysis_text
+                # 패턴 2: **1. 주요 내용 요약** 형식 (### 없이)
+                main_pattern2 = re.search(r'\*\*1\. 주요 내용 요약\*\*(.*?)\*\*2\. 시사점 및 전망\*\*', analysis_text, re.DOTALL)
+                if main_pattern2:
+                    main_content = main_pattern2.group(1).strip()
+                    print(f"  [디버그] 패턴2로 주요내용 추출 성공")
+                else:
+                    # 패턴 3: 1. 주요 내용 요약 형식 (별표 없이)
+                    main_pattern3 = re.search(r'1\. 주요 내용 요약(.*?)2\. 시사점 및 전망', analysis_text, re.DOTALL)
+                    if main_pattern3:
+                        main_content = main_pattern3.group(1).strip()
+                        print(f"  [디버그] 패턴3으로 주요내용 추출 성공")
+                    else:
+                        print(f"  [디버그] 주요내용 패턴 매칭 실패")
 
-            # 남은 마크다운 기호들 최종 정리
-            main_content = re.sub(r'[*#]', '', main_content).strip()
-            implications = re.sub(r'[*#]', '', implications).strip()
-
+            # 시사점 파싱도 동일하게 다양한 패턴 지원
+            # 패턴 1: ### **2. 시사점 및 전망** 형식
+            impl_pattern1 = re.search(r'### \*\*2\. 시사점 및 전망\*\*(.*)', analysis_text, re.DOTALL)
+            if impl_pattern1:
+                implications = impl_pattern1.group(1).strip()
+                print(f"  [디버그] 패턴1로 시사점 추출 성공")
+            else:
+                # 패턴 2: **2. 시사점 및 전망** 형식
+                impl_pattern2 = re.search(r'\*\*2\. 시사점 및 전망\*\*(.*)', analysis_text, re.DOTALL)
+                if impl_pattern2:
+                    implications = impl_pattern2.group(1).strip()
+                    print(f"  [디버그] 패턴2로 시사점 추출 성공")
+                else:
+                    # 패턴 3: 2. 시사점 및 전망 형식
+                    impl_pattern3 = re.search(r'2\. 시사점 및 전망(.*)', analysis_text, re.DOTALL)
+                    if impl_pattern3:
+                        implications = impl_pattern3.group(1).strip()
+                        print(f"  [디버그] 패턴3으로 시사점 추출 성공")
+                    else:
+                        print(f"  [디버그] 시사점 패턴 매칭 실패")
+            
+            # 마크다운 문법 정리 (*, ** 제거)
+            main_content = re.sub(r'\*+', '', main_content).strip()
+            implications = re.sub(r'\*+', '', implications).strip()
+            
         except Exception as e:
             print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
-        # --- [수정 끝] ---
-
-
-        # --- [수정] f-string 오류를 해결하기 위해 문자열 처리를 미리 수행 ---
-        main_content_html = main_content.replace('ㅇ', '&#8226;').replace('\n', '<br>')
-        implications_html = implications.replace('ㅇ', '&#8226;').replace('\n', '<br>')
-        # --- [수정 끝] ---
 
         news_items_html += f"""
         <div class="news-item">
@@ -835,16 +859,16 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             <div class="analysis-container">
                 <div class="analysis-section summary">
                     <div class="analysis-title"><span class="icon">📝</span><strong>주요 내용</strong></div>
-                    <p class="analysis-text">{main_content_html}</p>
+                    <p class="analysis-text">{main_content.replace('ㅇ', '&#8226;').replace('\n', '<br>')}</p>
                 </div>
                 <div class="analysis-section implications">
                     <div class="analysis-title"><span class="icon">💡</span><strong>시사점 및 전망</strong></div>
-                    <p class="analysis-text">{implications_html}</p>
+                    <p class="analysis-text">{implications.replace('ㅇ', '&#8226;').replace('\n', '<br>')}</p>
                 </div>
             </div>
         </div>"""
 
-    # 2. 기타 뉴스 HTML 생성 (이하 코드는 변경 없음)
+    # 2. 기타 뉴스 HTML 생성 (변경 없음)
     other_news_html = ""
     if other_news:
         other_news_html += """
@@ -857,7 +881,8 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         
         other_news_html += "</ul></div>"
 
-    # 3. 전체 이메일 본문 조합 (이하 코드는 변경 없음)
+
+    # 3. 전체 이메일 본문 조합 (템플릿 수정)
     html_body = f"""
     <!DOCTYPE html>
     <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ICT 주요기술 동향 리포트</title>
@@ -894,7 +919,7 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         .footer {{ text-align: center; padding: 30px; background-color: #f4f7fa; font-size: 13px; color: #999; }}
     </style></head>
     <body><div class="email-container">
-        <div class="header"><h1>{report_title}</h1><p>오늘의 핵심 기술 뉴스를 AI가 분석해드립니다.</p><p class="disclaimer">※ 본 보고서의 내용은 AI가 생성한 분석으로, 개인적인 의견을 포함하지 않습니다.</p></div>
+        <div class="header"><h1>{report_title}</h1><p class="disclaimer">※ 본 보고서의 내용은 IRONAGE AI가 생성한 분석으로, 개인적인 의견을 포함하지 않습니다.</p></div>
         <div class="main-content">
             <div class="report-intro">
                 <a href="{doc_url}" class="button" target="_blank">📄 전체 보고서 보기</a>
@@ -1009,16 +1034,3 @@ if __name__ == "__main__":
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
     print("==============================================")
-
-
-
-
-
-
-
-
-
-
-
-
-
