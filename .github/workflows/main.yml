@@ -23,6 +23,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install feedparser requests openai google-api-python-client google-auth-httplib2 google-auth-oauthlib
+        pip install -r requirements.txt
 
     - name: Create credentials.json from secret
       # 작은따옴표를 사용하여 Secret 내용을 문자 그대로 파일에 쓰도록 수정 (JSON 깨짐 방지)
