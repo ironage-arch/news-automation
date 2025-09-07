@@ -846,6 +846,10 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         except Exception as e:
             print(f"  (경고) AI 분석 결과 파싱 중 오류 발생: {e}")
 
+        # 백슬래시 문제를 해결하기 위해 replace 메서드를 사용
+        main_content_formatted = main_content.replace('ㅇ', '&#8226;').replace('\n', '<br>')
+        implications_formatted = implications.replace('ㅇ', '&#8226;').replace('\n', '<br>')
+        
         news_items_html += f"""
         <div class="news-item">
             <div class="news-header">
@@ -859,11 +863,11 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
             <div class="analysis-container">
                 <div class="analysis-section summary">
                     <div class="analysis-title"><span class="icon">📝</span><strong>주요 내용</strong></div>
-                    <p class="analysis-text">{main_content.replace('ㅇ', '&#8226;').replace('\n', '<br>')}</p>
+                    <p class="analysis-text">{main_content_formatted}</p>
                 </div>
                 <div class="analysis-section implications">
                     <div class="analysis-title"><span class="icon">💡</span><strong>시사점 및 전망</strong></div>
-                    <p class="analysis-text">{implications.replace('ㅇ', '&#8226;').replace('\n', '<br>')}</p>
+                    <p class="analysis-text">{implications_formatted}</p>
                 </div>
             </div>
         </div>"""
@@ -1033,4 +1037,4 @@ if __name__ == "__main__":
 
     print("\n==============================================")
     print("🎉 모든 작업이 완료되었습니다!")
-    print("==============================================")
+    print("================================================")
