@@ -1,3 +1,44 @@
+import subprocess
+import sys
+
+# 필요한 패키지 자동 설치
+def install_required_packages():
+    """필요한 패키지들을 자동으로 설치하는 함수"""
+    required_packages = [
+        'feedparser',
+        'requests', 
+        'beautifulsoup4',
+        'lxml',
+        'openai',
+        'google-api-python-client',
+        'google-auth-httplib2',
+        'google-auth-oauthlib'
+    ]
+    
+    for package in required_packages:
+        try:
+            # 패키지명에서 하이픈을 언더스코어로 변경하여 import 시도
+            import_name = package.replace('-', '_')
+            if import_name == 'beautifulsoup4':
+                import_name = 'bs4'
+            elif import_name == 'google_api_python_client':
+                import_name = 'googleapiclient'
+            
+            __import__(import_name)
+            print(f"{package} is already installed.")
+        except ImportError:
+            print(f"Installing {package}...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+                print(f"Successfully installed {package}")
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to install {package}: {e}")
+
+# 패키지 설치 실행
+print("Checking and installing required packages...")
+install_required_packages()
+print("Package installation completed.")
+
 import feedparser
 import requests
 import json
@@ -20,7 +61,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from urllib.parse import urlparse, parse_qs
-from bs4 import BeautifulSoup # ✨ 라이브러리 추가
+from bs4 import BeautifulSoup
 
 # ==============================================================================
 # --- 1. 사용자 설정 (GitHub Actions Secrets에서 자동으로 불러옵니다) ---
@@ -850,19 +891,41 @@ def send_gmail_report(report_title, analyzed_data, doc_url, other_news):
         main_content_formatted = main_content.replace('ㅇ', '&#8226;').replace('\n', '<br>')
         implications_formatted = implications.replace('ㅇ', '&#8226;').replace('\n', '<br>')
         
+        # HTML을 안전하게 생성
         news_items_html += f"""
         <div class="news-item">
             <div class="news-header">
-                <h3 class="news-title">{data['title']}</h3>
+                <h3 class="news-title">{str(data.get('title', '제목 없음'))}</h3>
                 <div class="news-meta">
-                    <span><strong>출처:</strong> {data['source']}</span>
-                    <span><strong>발행일:</strong> {data['published']}</span>
-                    <span><a href="{data['link']}" target="_blank">원문 기사 보기 &rarr;</a></span>
+                    <span><strong>출처:</strong> {str(data.get('source', '출처 불명'))}</span>
+                    <span><strong>발행일:</strong> {str(data.get('published', '날짜 없음'))}</span>
+                    <span><a href="{str(data.get('link', '#'))}" target="_blank">원문 기사 보기 &rarr;</a></span>
                 </div>
             </div>
             <div class="analysis-container">
                 <div class="analysis-section summary">
                     <div class="analysis-title"><span class="icon">📝</span><strong>주요 내용</strong></div>
+                    <p class="analysis-text">{main_content_formatted}</p>
+                </div>
+                <div class="analysis-section implications">
+                    <div class="analysis-title"><span class="icon">💡</span><strong>시사점 및 전망</strong></div>
+                    <p class="analysis-text">{implications_formatted}</p>
+                </div>
+            </div>
+        </div>"""
+
+    # 2. 기타 뉴스 HTML 생성 (안전한 문자열 처리)
+    other_news_html = ""
+    if other_news:
+        other_news_html += """
+        <div class="other-news-section">
+            <h2>기타 수집된 뉴스</h2>
+            <ul class="other-news-list">
+        """
+        for item in other_news:
+            other_news_html += f'<li><a href="{str(item.get("link", "#"))}" target="_blank" class="other-news-link"><span class="other-news-title">{str(item.get("title", "제목 없음"))}</span><span class="other-news-source">({str(item.get("source", "출처 불명"))})</span></a></li>'
+        
+        other_news_html += "</ul></div>"title"><span class="icon">📝</span><strong>주요 내용</strong></div>
                     <p class="analysis-text">{main_content_formatted}</p>
                 </div>
                 <div class="analysis-section implications">
